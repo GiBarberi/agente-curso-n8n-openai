@@ -61,7 +61,13 @@
       ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 2000
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "openAiApi": {
+          "id": "cVKVeo7BRGBJiayH",
+          "name": "OpenAI account"
+        }
+      }
     },
     {
       "parameters": {

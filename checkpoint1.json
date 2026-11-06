@@ -52,7 +52,13 @@
       "position": [
         240,
         220
-      ]
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "cVKVeo7BRGBJiayH",
+          "name": "OpenAI account"
+        }
+      }
     }
   ],
   "pinData": {},

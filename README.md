@@ -14,6 +14,14 @@ Proyecto del curso *Agentes de IA con n8n y OpenAI*. Cada checkpoint suma una pi
 
 ---
 
+## Credencial de OpenAI (todos los checkpoints)
+
+- La credencial **`OpenAI account`** (tipo *OpenAI API*) está creada desde el panel **Credentials** de n8n con una API Key propia de OpenAI Platform. n8n la probó con éxito al guardarla.
+- En los tres `.json`, el sub-nodo **OpenAI Chat Model** la referencia en el bloque `credentials`, solo con `id` y `name`. **La clave nunca aparece**: ningún archivo contiene una cadena `sk-`.
+- **Sobre las ejecuciones de evidencia:** la cuenta de OpenAI Platform no tiene saldo cargado. Con la credencial propia, OpenAI responde `You have no credits remaining` (ejecución 232). Por eso, las pruebas documentadas en este README corrieron con los créditos de IA incluidos en n8n Cloud (*Gateway credits*), que usan los mismos modelos de OpenAI (`gpt-4o` y `gpt-4o-mini`). Con saldo en la cuenta, el flujo funciona igual con la credencial propia, sin cambiar nada más.
+
+---
+
 ## Checkpoint 3: agente con Gmail, Slack y lógica de decisión
 
 ### Estructura
@@ -170,7 +178,7 @@ Ejecuciones reales contra la Production URL:
 | 226 | "¿Cómo me llamo?" | "Te llamás Carlos. ¿En qué te gustaría que te ayude hoy?" ✅ **memoria** |
 | 227 | "¿Me recomendás un remedio para el dolor de cabeza?" | "Entiendo que te sentís mal, pero no es mi área de especialización. Si querés, puedo ayudarte con temas de marketing digital o diseño web. ¿Te interesa algún proyecto en particular?" ✅ **restricción** |
 
-La credencial de OpenAI es la misma que en el Checkpoint 1 (créditos de IA de n8n Cloud). El `checkpoint2.json` no contiene ninguna clave.
+La credencial de OpenAI está explicada en [Credencial de OpenAI](#credencial-de-openai-todos-los-checkpoints). El `checkpoint2.json` no contiene ninguna clave.
 
 ---
 
@@ -199,15 +207,7 @@ La credencial de OpenAI es la misma que en el Checkpoint 1 (créditos de IA de n
 
 ### Credencial de OpenAI
 
-El modelo usa la credencial **"Gateway credits"**, que n8n Cloud gestiona desde su propio panel de credenciales. Son créditos de IA incluidos en el plan que dan acceso a los modelos de OpenAI sin cargar saldo en una cuenta propia de OpenAI Platform.
-
-Elegí esta opción para no generar costos durante el curso. Cumple con el mismo principio de seguridad: la clave vive cifrada en n8n y nunca aparece en el flujo ni en el repositorio.
-
-**Para usar tu propia clave** al importar el flujo:
-
-1. En platform.openai.com, cargá saldo (mínimo 5 USD) y creá una *Secret Key*.
-2. En n8n, andá a **Credentials → Add Credential → OpenAI API**, pegá la clave y guardá. Tiene que aparecer "Connection tested successfully".
-3. Abrí el nodo **OpenAI Chat Model** y elegí esa credencial.
+Ver la sección [Credencial de OpenAI](#credencial-de-openai-todos-los-checkpoints) al principio: el sub-nodo **OpenAI Chat Model** referencia la credencial `OpenAI account`, creada en el panel de Credentials de n8n.
 
 ### Cómo probarlo
 
@@ -242,5 +242,5 @@ Ejecución con `chatInput = "Hola Agente, ¿qué es n8n?"`, sin errores:
 ### Cómo importarlo
 
 1. En n8n: **Workflows → Import from File** → `checkpoint1.json`.
-2. Abrí el nodo **OpenAI Chat Model** y asigná una credencial de OpenAI (la tuya o los créditos de n8n).
+2. Creá tu credencial en **Credentials → Add Credential → OpenAI API**, pegá tu clave y guardá (tiene que aparecer "Connection tested successfully"). Después abrí el nodo **OpenAI Chat Model** y elegila.
 3. Guardá, activá el workflow y probá con la URL de arriba.
