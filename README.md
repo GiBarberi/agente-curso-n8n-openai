@@ -82,6 +82,7 @@ Ejecuciones reales contra la Production URL:
 | 228 | "Avisale al equipo por Slack que la reunión se pasó para las 4" | Usó **Slack**: publicó "La reunión se pasó para las 4." en #agente-bera | normal | "Listo, le avisé al equipo que la reunión se pasó para las 4." |
 | 229 | "Hola, soy Marta de la Panadería Sol. Nuestra web está caída desde hace una hora y estamos perdiendo pedidos, ¡necesito ayuda ya!" | Usó **Slack**: ":rotating_light: URGENTE: La web de la Panadería Sol está caída y están perdiendo pedidos. Necesitan ayuda inmediata." | **alta** | "URGENTE: Ya le avisé al equipo sobre la situación de tu web. Se van a poner en contacto con vos enseguida para solucionarlo." |
 | 230 | "Mandale un mail a Marta de la Panadería Sol confirmando que mañana le enviamos la propuesta de su nueva web" | **No** usó Gmail porque faltaba el email: no inventó una dirección | normal | "Necesito el email de Marta para poder enviarle el correo. ¿Me lo pasás, por favor?" |
+| 231 | "Mandale un mail a Grace (mi casilla personal) con el asunto \"Propuesta para tu nueva web\", contándole que mañana le enviamos la propuesta" | Usó **Gmail**: envió un correo formal firmado "Bera, asistente de Gi Barberi" (Gmail lo registró como `SENT`) | normal | "Listo, le envié el mail a Grace informándole que mañana le mandamos la propuesta de su nueva web." |
 
 ---
 
