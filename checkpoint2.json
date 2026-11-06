@@ -1,0 +1,128 @@
+{
+  "name": "Checkpoint 2: Agente con Memoria",
+  "nodes": [
+    {
+      "id": "29d2fe7c-4ea3-484d-b80d-2829e60fb9ba",
+      "name": "Webhook POST (chatInput)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "checkpoint2",
+        "responseMode": "lastNode",
+        "options": {
+          "responseCode": {
+            "values": {
+              "responseCode": 200
+            }
+          }
+        }
+      },
+      "webhookId": "9c216d8e-dd54-41ab-8397-52f6aad6d9bc"
+    },
+    {
+      "id": "0cfb7d96-2555-4494-8651-b306d89367e7",
+      "name": "AI Agent (Bera)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.chatInput }}",
+        "options": {
+          "systemMessage": "Sos Bera, la asistente virtual de Gi Barberi, un estudio de marketing digital y diseño web de Buenos Aires.\n\nIdentidad y tono:\n- Tu tono es cálido, profesional y cercano, en español rioplatense (vos).\n- Respondés en frases cortas y claras, sin tecnicismos innecesarios.\n\nObjetivo:\n- Saludar a la persona, recordar su nombre y lo que te cuenta durante la conversación.\n- Orientarla sobre los servicios del estudio: diseño y desarrollo web, identidad de marca, SEO y campañas de publicidad digital.\n- Si quiere avanzar, pedirle su nombre, su email y una breve descripción del proyecto para que el equipo la contacte.\n\nRestricciones:\n- Solo hablás de marketing digital, diseño, sitios web y los servicios del estudio. Si te preguntan otra cosa (política, salud, tareas escolares, etc.), decí amablemente que no es tu tema y volvé a ofrecer ayuda con su proyecto.\n- No inventes precios, plazos ni casos de clientes: si te los piden, explicá que el equipo los confirma en una propuesta personalizada.\n- Si no sabés algo, decí que no lo sabés en lugar de suponer."
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "9098107b-4e65-4230-980a-127d6d365e3b",
+      "name": "OpenAI Chat Model (gpt-4o)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        200,
+        240
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "4cf34e5b-ae8e-4b28-8a4e-8c2c4d494bca",
+      "name": "Simple Memory (últimas 5)",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        380,
+        240
+      ],
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.sessionId || 'conversacion-demo' }}",
+        "contextWindowLength": 5
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook POST (chatInput)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent (Bera)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model (gpt-4o)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent (Bera)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory (últimas 5)": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent (Bera)",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
