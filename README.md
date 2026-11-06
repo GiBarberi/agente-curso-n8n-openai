@@ -91,7 +91,11 @@ Todas las respuestas tienen el mismo formato:
 | Caso urgente | Bera detecta una urgencia y el flujo le avisa al equipo |
 | Fallo del workflow | El Error Trigger captura un error |
 
-![Tabla bera_logs](evidencias/bera_logs.png)
+![Tabla bera_logs: timestamp, ejecución, sesión, resultado y código HTTP](evidencias/bera_logs.png)
+
+![Tabla bera_logs: input, output y error de cada ejecución](evidencias/bera_logs_detalle.png)
+
+> En las primeras pruebas cada ejecución quedaba registrada dos veces: el nodo de registro tenía *Retry on Fail* y repetía la inserción. Le saqué el reintento a ese nodo (la tabla interna de n8n no tiene cortes pasajeros que lo justifiquen) y desde la ejecución 243 queda una sola fila por ejecución.
 
 ### 5. Seguridad
 
