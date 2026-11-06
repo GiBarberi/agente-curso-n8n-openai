@@ -13,6 +13,78 @@ Proyecto del curso *Agentes de IA con n8n y OpenAI*. Cada checkpoint suma una pi
 
 ---
 
+## Guía para corregir el Checkpoint 4
+
+### Qué hay en el repositorio
+
+```
+agente-curso-n8n-openai/
+├── checkpoint1.json       ← Módulo 1: Webhook GET + AI Agent + OpenAI
+├── checkpoint2.json       ← Módulo 2: Webhook POST + System Message + Simple Memory
+├── checkpoint3.json       ← Módulo 3: herramientas Gmail y Slack + If de decisión
+├── workflow.json          ← Módulo 4: el flujo endurecido, sin claves
+├── README.md              ← esta guía + las seis secciones del Checkpoint 4
+└── evidencias/
+    ├── flujo_checkpoint4.png            ← canvas completo del flujo endurecido
+    ├── subflujo_errores_monitoreo.png   ← Error Trigger + control horario de errores y tokens
+    ├── bera_logs.png                    ← tabla de monitoreo: timestamp, sesión, resultado, HTTP
+    └── bera_logs_detalle.png            ← tabla de monitoreo: input, output y error
+```
+
+### Cada requisito, dónde está y cómo verificarlo
+
+Los nombres de nodo son los mismos que en `workflow.json`. Se pueden buscar con Ctrl+F en el archivo.
+
+| Capa | Requisito de la consigna | Dónde está (nodo en `workflow.json`) | Evidencia |
+| --- | --- | --- | --- |
+| **Errores** | Error Trigger conectado a un sub-flujo | `Error Trigger` → `Datos del error` → `Registrar error en bera_logs` → `Alerta: el workflow falló (Slack)` | `evidencias/subflujo_errores_monitoreo.png` |
+| | Retry on Fail (2 o 3 intentos) en OpenAI y APIs externas | `"retryOnFail": true, "maxTries": 3` en `AI Agent (Bera)`, `OpenAI Chat Model (gpt-4o)`, `Enviar correo formal (Gmail)`, `Avisar al equipo (Slack)` y los nodos de alerta de Slack | Ejecución 233: 3 reintentos antes del fallback |
+| | Fallback explícito | `AI Agent (Bera)` con `"onError": "continueErrorOutput"` → `Fallback: IA no disponible` (HTTP 503 + mensaje amable) | Ejecución 233 en la tabla de pruebas y en `bera_logs.png` (filas `error_ia` / 503) |
+| | Errores en un destino visible | Tabla `bera_logs` + canal de Slack **#agente-bera** | `bera_logs.png`, `bera_logs_detalle.png` |
+| **Monitoreo** | "Save execution progress" habilitado | `"settings": { "saveExecutionProgress": true }` al final de `workflow.json` | — |
+| | Set al final de cada rama con timestamp, sesión, tokens, resultado y duración | `Resultado: urgente`, `Resultado: respuesta normal`, `Fallback: sin información suficiente`, `Fallback: IA no disponible`, `Rechazo: input inválido` → `Métricas de la ejecución` → `Registrar en bera_logs` | `bera_logs.png` (columnas `timestamp`, `session_id`, `resultado`, `http_status`) y `bera_logs_detalle.png` |
+| | Alertas: tiempo excesivo, tasa de errores, tokens | `¿Ejecución crítica?` (más de 20 s, más de 2000 tokens o 5xx) → `Alerta de monitoreo (Slack)`. `Cada hora` → `Calcular tasa de errores y tokens` → `¿Supera umbrales?` (más del 20 % de errores o más de 20.000 tokens) → `Alerta: tasa de errores o consumo (Slack)` | Ejecución 244: detectó 42 % de errores y avisó en Slack |
+| **Seguridad** | Sin credenciales escritas a mano | Solo hay referencias `"credentials": { "...": { "id", "name" } }`. Ninguna cadena `sk-` ni `xox`. | Ver la sección 5 |
+| | IF que valida el input | `¿Input válido?`: texto no vacío, hasta 1000 caracteres, sin `< > { } \``, `sessionId` con formato seguro | Ejecuciones 242 (`<script>` → 400) y 243 (vacío → 400) |
+| | Permiso mínimo justificado | Tabla de la sección 5 | — |
+| **Alucinaciones** | Cláusula "no inventar" en el System Message | `AI Agent (Bera)` → `options.systemMessage`, bloque "Cuando no sabés (regla obligatoria)" | Ejecución 240: "No tengo información suficiente…" ante una pregunta de precios |
+| | Temperatura baja | `OpenAI Chat Model (gpt-4o)` → `"temperature": 0.2` | — |
+| | IF que valida la salida antes de la acción | `¿Salida confiable?` (mínimo 15 caracteres y sin frases de incertidumbre) **antes** de `¿Es URGENTE?` → `Acción: alerta urgente al equipo` | Ejecución 240 → rama `sin_informacion`, sin acción. Ejecución 241 → rama urgente con alerta. |
+
+### Cómo ejecutarlo
+
+**1. Importar**
+- En n8n: **Workflows → Import from File** → `workflow.json`.
+
+**2. Asignar las credenciales** en los nodos que las piden:
+- *OpenAI API*: tu clave.
+- *Gmail OAuth2*.
+- *Slack OAuth2*: el canal destino es `#agente-bera`, o cambiá el nombre en los nodos de Slack.
+
+**3. Crear la tabla de monitoreo**
+- En **Overview → Data tables**, creá una tabla llamada `bera_logs`.
+- Columnas de texto: `timestamp`, `execution_id`, `session_id`, `resultado`, `input`, `output`, `error`.
+- Columnas numéricas: `http_status`, `tokens_estimados`, `duracion_ms`.
+
+**4. Activar** el workflow con **Publish** y usar la *Production URL* del Webhook.
+
+**5. Probar las tres puntas**, reemplazando `URL` por la Production URL:
+
+```bash
+# Normal → 200, resultado "ok"
+curl -X POST URL -H "Content-Type: application/json" -d '{"chatInput": "Hola, soy Carlos. ¿Qué servicios ofrecen?"}'
+
+# Manejo de errores (input inválido) → 400, resultado "entrada_invalida", sin llamar a OpenAI
+curl -X POST URL -H "Content-Type: application/json" -d '{"chatInput": ""}'
+
+# Posible alucinación → 200, resultado "sin_informacion": dice que no sabe y no ejecuta ninguna acción
+curl -X POST URL -H "Content-Type: application/json" -d '{"chatInput": "¿Cuánto cuesta exactamente una tienda online y en cuántos días la entregan?"}'
+```
+
+Para ver el **fallback 503**, asigná en el nodo OpenAI una credencial sin saldo o inválida y repetí la primera prueba. Cada prueba deja una fila en `bera_logs`, y las críticas también llegan a #agente-bera.
+
+---
+
 ## Checkpoint 4: agente endurecido para producción
 
 ![Canvas del flujo endurecido: rama principal, sub-flujo de errores y control horario](evidencias/flujo_checkpoint4.png)
