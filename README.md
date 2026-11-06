@@ -2,12 +2,86 @@
 
 **Repositorio:** [`GiBarberi/agentes-de-ia-con-n8n-y-openai`](https://github.com/GiBarberi/agentes-de-ia-con-n8n-y-openai) · **Autora:** Graciela Barberi
 
+**Qué hace hoy el agente:** Bera atiende a clientes y al equipo de un estudio de marketing por un Webhook, recuerda la conversación, envía correos formales por Gmail, avisa al equipo por Slack y marca las urgencias con una respuesta distinta.
+
 Proyecto del curso *Agentes de IA con n8n y OpenAI*. Cada checkpoint suma una pieza al mismo agente: en el Módulo 1, el modelo; en el 2, la memoria; en el 3, las herramientas; y en el 4, lo que lo prepara para producción.
 
 | Checkpoint | Archivo | Qué agrega |
 | --- | --- | --- |
 | **1. Base técnica** | [`checkpoint1.json`](checkpoint1.json) | Webhook GET con `chatInput`, AI Agent y OpenAI Chat Model |
 | **2. Agente con memoria** | [`checkpoint2.json`](checkpoint2.json) | Webhook POST, System Message con identidad y restricciones, Simple Memory (5) y Retry on Fail |
+| **3. Gmail, Slack y decisión** | [`checkpoint3.json`](checkpoint3.json) | Herramientas Gmail y Slack con descripciones de negocio, y un If después del agente que separa las urgencias |
+
+---
+
+## Checkpoint 3: agente con Gmail, Slack y lógica de decisión
+
+### Estructura
+
+```
+[ Webhook POST ]  ──►  [ AI Agent (Bera) ]  ──►  [ ¿La respuesta es URGENTE? ]
+  body.chatInput         gpt-4o · retry 3×2 s         │ sí ──► [ Responder: prioridad alta ]
+  responde con nodo            │                       │ no ──► [ Responder: prioridad normal ]
+                               │
+        ┌──────────────┬───────┴────────┬──────────────────────┐
+        ▼              ▼                ▼                      ▼
+ [ OpenAI gpt-4o ] [ Simple Memory ] [ Enviar correo      ] [ Avisar al equipo   ]
+                    últimas 5         [ formal (Gmail)     ] [ (Slack) #agente-bera]
+```
+
+| Requisito | Cómo se cumple |
+| --- | --- |
+| **Arquitectura heredada** | Webhook `POST` con `{{ $json.body.chatInput }}`, AI Agent con `gpt-4o` y Simple Memory de 5 interacciones, igual que en el Checkpoint 2 |
+| **Herramienta Gmail** | Nodo *Gmail Tool* (enviar mensaje) en el puerto de herramientas, con la credencial `Gmail account` (OAuth2) y descripción propia |
+| **Herramienta Slack** | Nodo *Slack Tool* (publicar mensaje) en el puerto de herramientas, con la credencial `Slack account` (OAuth2), canal `#agente-bera` y descripción propia |
+| **Decisión posterior** | Nodo If **después** del agente: si la respuesta contiene `URGENTE`, va a la rama de prioridad alta |
+| **Respuesta al Webhook** | Las dos ramas terminan en un *Respond to Webhook* con código 200. El flujo nunca queda en *Pending*. |
+| **Seguridad** | Ninguna clave escrita en los nodos. El JSON solo trae las referencias (`id` y `name`) de las credenciales. |
+
+### Las descripciones de las herramientas
+
+Son lo único que el modelo lee para decidir qué herramienta usar. Las escribí en términos de negocio y dejé explícita la diferencia entre las dos: **Gmail es para gente de afuera y por escrito formal; Slack es para el equipo y avisos rápidos.**
+
+**Enviar correo formal (Gmail):**
+
+> Envía un CORREO FORMAL por Gmail a una persona de afuera del estudio: un cliente, un posible cliente o un proveedor. Usala cuando el usuario pida "mandale un mail", "escribile a", "enviá una propuesta o un presupuesto" o cuando haya que dejar algo por escrito con alguien externo. Necesita el email del destinatario: si el usuario no lo dio, NO la uses y pedíselo. No la uses para avisos internos al equipo (para eso está Slack).
+
+**Avisar al equipo (Slack):**
+
+> Publica un AVISO RÁPIDO para el EQUIPO INTERNO del estudio en el canal de Slack #agente-bera. Usala cuando el usuario pida "avisale al equipo", "contale a los chicos", "dejá un aviso" o cuando haya una novedad interna: cambios de horario de reuniones, tareas, recordatorios o un pedido urgente de un cliente que el equipo tiene que atender ya. Mensajes cortos e informales. No la uses para escribirle a clientes ni a personas de afuera (para eso está Gmail).
+
+Los parámetros (destinatario, asunto, mensaje y texto del aviso) los completa el modelo con `$fromAI()`, también con una descripción de qué va en cada uno.
+
+### La lógica de decisión
+
+El System Message le pide a Bera que, si el pedido es urgente (sitio caído, cliente muy molesto, entrega que vence hoy), avise al equipo por Slack y **empiece su respuesta con `URGENTE:`**. Después de que la IA responde, el If evalúa ese texto:
+
+| Rama | Condición | Respuesta del Webhook |
+| --- | --- | --- |
+| **Prioridad alta** | `output` contiene `URGENTE` | `{ "prioridad": "alta", "respuesta": "...", "aviso": "Se marcó como urgente: el equipo fue notificado en Slack (#agente-bera)." }` |
+| **Prioridad normal** | cualquier otro caso | `{ "prioridad": "normal", "respuesta": "..." }` |
+
+Primero la IA razona y actúa. Después, la lógica de negocio decide cómo se entrega el resultado.
+
+### Cómo probarlo
+
+```bash
+curl -X POST https://grabarberi.app.n8n.cloud/webhook/checkpoint3 \
+  -H "Content-Type: application/json" \
+  -d '{"chatInput": "Avisale al equipo por Slack que la reunión se pasó para las 4"}'
+```
+
+El campo `sessionId` es opcional: separa la memoria por usuario.
+
+### Evidencia
+
+Ejecuciones reales contra la Production URL:
+
+| Ejecución | `chatInput` | Qué hizo el agente | Rama del If | Respuesta |
+| --- | --- | --- | --- | --- |
+| 228 | "Avisale al equipo por Slack que la reunión se pasó para las 4" | Usó **Slack**: publicó "La reunión se pasó para las 4." en #agente-bera | normal | "Listo, le avisé al equipo que la reunión se pasó para las 4." |
+| 229 | "Hola, soy Marta de la Panadería Sol. Nuestra web está caída desde hace una hora y estamos perdiendo pedidos, ¡necesito ayuda ya!" | Usó **Slack**: ":rotating_light: URGENTE: La web de la Panadería Sol está caída y están perdiendo pedidos. Necesitan ayuda inmediata." | **alta** | "URGENTE: Ya le avisé al equipo sobre la situación de tu web. Se van a poner en contacto con vos enseguida para solucionarlo." |
+| 230 | "Mandale un mail a Marta de la Panadería Sol confirmando que mañana le enviamos la propuesta de su nueva web" | **No** usó Gmail porque faltaba el email: no inventó una dirección | normal | "Necesito el email de Marta para poder enviarle el correo. ¿Me lo pasás, por favor?" |
 
 ---
 
